@@ -1,0 +1,20 @@
+version: 2
+
+sources:
+  - name: Token_Insight
+    # In DuckDB, we don't have a strict postgres schema, we use 'main'
+    schema: main
+    tables:
+      - name: transfers
+        meta:
+          # Tells DuckDB to read all parquet files in this folder, and enables hive partitioning!
+          external_location: "read_parquet('../data/raw/transfers.parquet/**/*.parquet', hive_partitioning=1)"
+
+      - name: dim_tokens
+        meta:
+          # PySpark created these as folders containing part-files
+          external_location: "'../data/raw/dim_tokens.parquet/*.parquet'"
+
+      - name: dim_contracts
+        meta:
+          external_location: "'../data/raw/dim_contracts.parquet/*.parquet'"

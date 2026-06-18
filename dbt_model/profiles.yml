@@ -1,0 +1,19 @@
+# dbt_model:
+#   outputs:
+#     dev:
+#       dbname: pipes
+#       host: localhost
+#       pass: password
+#       port: 5432
+#       schema: public
+#       threads: 2
+#       type: postgres
+#       user: postgres
+#   target: dev
+dbt_model:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../data/analytics.duckdb
+      threads: 4

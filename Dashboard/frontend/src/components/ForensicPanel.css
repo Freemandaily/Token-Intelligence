@@ -1,0 +1,198 @@
+.arkham-panel {
+  position: absolute;
+  top: 80px;
+  left: 20px;
+  width: 380px;
+  max-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  background: rgba(18, 18, 22, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+  font-family: monospace;
+  overflow: hidden;
+}
+
+.arkham-panel-header {
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.arkham-title {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: #fff;
+}
+
+.arkham-viewing-section {
+  padding: 20px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.arkham-label {
+  font-size: 12px;
+  color: #888;
+  letter-spacing: 1px;
+}
+
+.arkham-center-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-size: 14px;
+}
+
+.arkham-identicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+.arkham-toggle-section {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.arkham-section-title {
+  font-size: 11px;
+  color: #fff;
+  letter-spacing: 1px;
+  margin: 0 0 16px 0;
+}
+
+.arkham-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 16px;
+}
+
+.arkham-tab {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  padding: 10px;
+  color: #888;
+  font-family: monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.arkham-tab.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.arkham-scroll-container {
+  overflow-y: auto;
+  flex-grow: 1;
+  padding-right: 8px;
+}
+
+.arkham-scroll-container::-webkit-scrollbar {
+  width: 4px;
+}
+.arkham-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.arkham-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.arkham-empty {
+  font-size: 12px;
+  color: #555;
+  font-style: italic;
+}
+
+.arkham-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.arkham-row-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.arkham-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.arkham-addr {
+  font-size: 13px;
+  color: #ddd;
+}
+
+.arkham-meta {
+  font-size: 11px;
+  color: #777;
+}
+
+.arkham-toggle-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.not-visible {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+.not-visible:hover {
+  background: rgba(34, 197, 94, 0.4);
+}
+
+.is-visible {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+.is-visible:hover {
+  background: rgba(239, 68, 68, 0.4);
+}
+
+.arkham-copy-btn {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+  border-radius: 4px;
+}
+
+.arkham-copy-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}

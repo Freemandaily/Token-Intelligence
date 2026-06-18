@@ -1,0 +1,14 @@
+fastapi==0.111.0
+uvicorn==0.29.0
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.30
+pandas==2.2.0
+networkx==3.3
+python-louvain==0.16
+pydantic==2.7.1
+pydantic-settings==2.2.1
+python-dotenv==1.0.0
+numpy==1.26.4
+duckdb>=1.1.0
+duckdb-engine>=0.17.0
+scipy>=1.17.1
