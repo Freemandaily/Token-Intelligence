@@ -1,5 +1,6 @@
 # Token Intelligence
 
+![Token Graph](./token-graph.png)
 A modern, lightweight data engineering and analytics platform built around **DuckDB**, **Parquet**, and **dbt**. 
 
 This project demonstrates how to build a highly efficient, performant data pipeline and serving layer *without* the overhead of spinning up, managing, or paying for a full traditional database instance (like PostgreSQL, Redshift, or Snowflake).
