@@ -20,7 +20,7 @@
  *       → { status, message }
  */
 
-const BASE = import.meta.env.VITE_API_URL ?? "";
+const BASE = import.meta.env.VITE_API_URL || "https://inteli-backend.onrender.com";
 
 async function request(path) {
   const res = await fetch(`${BASE}${path}`);
