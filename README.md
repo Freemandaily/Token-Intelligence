@@ -52,4 +52,4 @@ uvicorn api.main:app --reload
 ```
 
 ### 3. Docker Deployment
-The application is fully containerized. The `Dockerfile` simply copies the built `analytics.duckdb` file alongside the Python API code, providing an instant, read-only analytical backend that can be deployed anywhere.
+The application is fully containerized. The `Dockerfile` simply copies the built `analytics.duckdb` file alongside the Python API code, providing an instant, read-only analytical backend that can be deployed anywhere
