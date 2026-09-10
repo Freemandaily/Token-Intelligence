@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": process.env.BACKEND_URL || "http://localhost:8001",
+      "/api": process.env.BACKEND_URL || "https://inteli-backend.onrender.com",
     },
   },
 });
