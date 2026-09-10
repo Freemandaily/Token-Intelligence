@@ -1,55 +1,110 @@
 # Token Intelligence
 
 ![Token Graph](./token-graph.png)
-A modern, lightweight data engineering and analytics platform built around **DuckDB**, **Parquet**, and **dbt**. 
 
-This project demonstrates how to build a highly efficient, performant data pipeline and serving layer *without* the overhead of spinning up, managing, or paying for a full traditional database instance (like PostgreSQL, Redshift, or Snowflake).
+Token Intelligence is a modern data engineering and analytics platform built to ingest, model, and visualize blockchain token transfers. It helps analysts detect **token wealth concentration**, **coordinated launcher/dev bundling**, **airdrop distributions**, and **suspicious wallet connectivity networks (wash-trading, hub-and-spoke flows)**.
 
-## Architecture & Data Stack
+The platform is powered by a high-performance stack: **PostgreSQL** for storage and indexing, **dbt-postgres** for modular data modeling, a **FastAPI** backend, and an interactive **React/Vite** frontend.
 
-- **Storage Layer**: [Parquet](https://parquet.apache.org/) - Data is stored as columnar Parquet files, providing excellent compression and fast read performance.
-- **Query & Compute Engine**: [DuckDB](https://duckdb.org/) - An incredibly fast, in-process analytical SQL database. DuckDB queries our Parquet files directly using its vectorized execution engine.
-- **Transformation**: [dbt (data build tool)](https://www.getdbt.com/) - Used to model and transform raw data into clean, business-ready aggregations (`dbt_model/`).
-- **Serving Layer**: [FastAPI](https://fastapi.tiangolo.com/) - A Python web framework (`Dashboard/backend/`) that reads directly from the compiled `analytics.duckdb` file to serve low-latency analytical queries to the frontend.
+View [Dashboard](https://token-intelligence.onrender.com/)
+---
 
-## Why DuckDB + Parquet?
+## 🖥️ What the Frontend Looks Like & What it Displays
 
-Traditional data engineering stacks usually require moving data into a bulky data warehouse or a running database server. This project uses a **Local-First / Serverless** approach:
+The frontend dashboard provides a comprehensive, interactive workspace divided into several specialized panels:
 
-1. **Zero Infrastructure Overhead**: There is no database server to spin up, configure, scale, or maintain. The database is just a file (`analytics.duckdb`).
-2. **Massive Scale on a Single Node**: DuckDB is capable of seamlessly processing millions (and even billions) of rows of data locally. It is specifically designed for OLAP (Online Analytical Processing) and reads columnar Parquet files instantly, performing complex aggregations and joins at lightning speed without needing a distributed computing cluster.
-3. **Portability**: Because the database is file-based, deploying the application is as simple as bundling the `.duckdb` file into our Docker container (see our `Dockerfile`). This guarantees that what runs locally runs exactly the same in production.
-4. **Cost Efficiency**: Traditional databases (like AWS RDS, Snowflake, or Redshift) charge a baseline hourly fee just to keep the server running 24/7, even when idle. Because DuckDB is file-based and runs inside the application process, you completely eliminate these dedicated database costs. You only pay for the basic compute used when an API request is actively being processed.
+### 1. Token Selection & Discovery Sidebar
+* **Token Directory**: A sidebar listing all tracked tokens across various EVM chains (Ethereum, BSC, Base, Arbitrum, Optimism).
+* **Token Search & Filter**: Filter tokens by name, symbol, address, or network.
 
-## Project Structure
+### 2. High-Level Metrics (Stats Bar)
+* **Total Supply & Holder Count**: Displays the circulating supply and count of unique addresses holding the token.
+* **Concentration Score**: A quick risk assessment (`Highly Concentrated`, `Concentrated`, `Moderate`, or `Healthy`) based on the Gini Coefficient and top-holder percentages.
 
-```text
-token_intelligence/
-├── dbt_model/           # dbt project for data transformation (SQL models)
-├── data/                # Raw/Processed data (Parquet format)
-├── Dashboard/           # Full-stack application
-│   └── backend/         # FastAPI application serving queries from DuckDB
-└── README.md
+### 3. Distribution & Concentration Analytics
+* **Gini Coefficient**: Displays a score between `0.0` (perfect equality) and `1.0` (maximum inequality) showing how evenly the token supply is distributed.
+* **HHI (Herfindahl-Hirschman Index)**: Measures market concentration; higher values indicate a monopoly/oligopoly among a few wallets.
+* **Accumulation Metrics**: Displays what percentage of total supply is controlled by the **Top 10** and **Top 50** holders.
+
+### 4. Interactive Top Holders List
+* **Holder Profiles**: A table listing the top wallets sorted by balance and percentage of total supply.
+* **Wallet Classification**: Automatically labels addresses as **Whale** (>=1% supply), **Mid** (>=0.1%), or **Retail** (<0.1%) based on holdings.
+
+### 5. Launch-Day Bundling & Airdrop Detector
+* **Exchange Hub Visualizer**: Identifies the primary funding sources (centralized/decentralized exchange wallets) used to launch the token.
+* **Airdrop Timeline**: Lists batch distributions sent to many unique wallets in a single transaction.
+* **Dev/Launcher Bundles**: Flags coordinated bundling events where tokens were transferred from a hub to multiple unique wallets in a tight block window (specifically within the first **2 hours** of token launch).
+
+### 6. Interactive Wallet Forensics & Connection Graphs
+* **Wallet ego-network**: Input any wallet address to visualize its 1-hop inbound and outbound transaction connections.
+* **Deep Network Analysis (v2 Page)**:
+  * **Louvain Community Detection**: Color-coded nodes grouped into network communities.
+  * **Centrality Metrics**: Evaluates wallets based on **PageRank**, **In/Out Degree**, and **Betweenness Centrality** (identifying high-traffic "bridge" wallets).
+  * **Relay Wallets**: Identifies intermediary wallets routing transfers between other parties.
+  * **Suspicious Patterns**: Automatically flags structural anomalies such as **wash trades**, **circular flows**, and **hub-and-spoke networks**.
+
+---
+
+## 🛠️ Architecture & Data Stack
+
+```
+                        ┌──────────────────┐
+                        │ Blockchain Node  │ (EVM chains)
+                        └────────┬─────────┘
+                                 │ Ingest
+                                 ▼
+                        ┌──────────────────┐
+                        │ Raw PostgreSQL   │ (Transaction Logs)
+                        └────────┬─────────┘
+                                 │
+                                 │ dbt run (Data Modeling)
+                                 ▼
+                        ┌──────────────────┐
+                        │ Marts PostgreSQL │ (Refined Tables)
+                        └────────┬─────────┘
+                                 │
+                                 │ SQLAlchemy / SQL Queries
+                                 ▼
+                        ┌──────────────────┐
+                        │ FastAPI Backend  │ (Analytics Engine)
+                        └────────┬─────────┘
+                                 │
+                                 │ JSON API
+                                 ▼
+                        ┌──────────────────┐
+                        │  React Frontend  │ (Vite / D3 Graphs)
+                        └──────────────────┘
 ```
 
-## Getting Started
+* **Storage & Compute**: PostgreSQL stores raw blockchain events and serves fast queries on materialized analytics tables.
+* **Transformation Layer**: dbt structures raw transfer logs into clean, deduplicated, and chain-specific transaction tables.
+* **Serving Layer (FastAPI)**: Computes graph metrics (PageRank, Betweenness), runs community detection algorithms, and exposes endpoints.
+* **Presentation Layer (React + Vite)**: Dynamic, interactive D3-based network graphs and analytics tables.
+
+---
+
+## 🚀 Getting Started
 
 ### 1. Data Transformation (dbt)
-Our transformations run directly against the local data using the `dbt-duckdb` adapter.
+Run the analytical dbt pipeline to compile raw tables into production-ready marts:
 ```bash
 cd dbt_model
 dbt deps
 dbt run
 ```
-*This compiles your raw data and generates the `analytics.duckdb` database file.*
 
 ### 2. Running the API Backend
-The FastAPI backend connects directly to the DuckDB file to serve endpoints.
+Configure database environment variables in `Dashboard/backend/.env` and start the FastAPI dev server:
 ```bash
 cd Dashboard/backend
 pip install -r requirements.txt
 uvicorn api.main:app --reload
 ```
 
-### 3. Docker Deployment
-The application is fully containerized. The `Dockerfile` simply copies the built `analytics.duckdb` file alongside the Python API code, providing an instant, read-only analytical backend that can be deployed anywhere
+### 3. Running the Frontend
+Install dependencies and run the Vite development server:
+```bash
+cd Dashboard/frontend
+npm install
+npm run dev
+```
