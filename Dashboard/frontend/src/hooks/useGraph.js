@@ -260,10 +260,9 @@ export function useGraph(canvasRef) {
     const zoom = d3.zoom()
       .scaleExtent([0.1, 4])
       .filter((e) => {
-        // Allow standard zooming behavior (prevent right click etc)
         if (e.ctrlKey || e.button !== 0) return false;
-
-        // If clicking on a node, disable the canvas pan/zoom behavior!
+        // Always allow 2-finger pinch, even if fingers are on nodes
+        if (e.touches && e.touches.length >= 2) return true;
         if (e.type === "mousedown" || e.type === "touchstart") {
           const rect = canvas.getBoundingClientRect();
           const clientX = e.clientX ?? e.touches?.[0]?.clientX;
@@ -275,10 +274,9 @@ export function useGraph(canvasRef) {
               const n = nodes[i];
               const dx = x - n.x;
               const dy = y - n.y;
-              // visual hit tolerance of 12 pixels scaled by zoom
               const hitRadius = n.r + 12 / S.current.transform.k;
               if (dx * dx + dy * dy < hitRadius * hitRadius) {
-                return false; // Node hit! Ignore pan!
+                return false;
               }
             }
           }
@@ -291,6 +289,7 @@ export function useGraph(canvasRef) {
           requestAnimationFrame(drawFrame);
         }
       });
+    S.current.zoom = zoom;
 
     const drag = d3.drag()
       .subject((e) => {
@@ -342,7 +341,32 @@ export function useGraph(canvasRef) {
 
     d3.select(canvas)
       .call(zoom)
+      .on("dblclick.zoom", null) // disable default dblclick (always zoom-in)
       .call(drag);
+
+    // Custom double-tap / double-click: toggle zoom out when already zoomed in
+    const handleDblClick = (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const cx = (e.clientX ?? e.touches?.[0]?.clientX ?? rect.left + rect.width / 2) - rect.left;
+      const cy = (e.clientY ?? e.touches?.[0]?.clientY ?? rect.top + rect.height / 2) - rect.top;
+      const k = S.current.transform.k;
+      if (k > 1.15) {
+        d3.select(canvas).transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+      } else {
+        d3.select(canvas).transition().duration(300).call(zoom.scaleBy, 2, [cx, cy]);
+      }
+    };
+    canvas.addEventListener("dblclick", handleDblClick);
+    let lastTap = 0;
+    canvas.addEventListener("touchend", (e) => {
+      const now = Date.now();
+      if (now - lastTap > 0 && now - lastTap < 350 && e.changedTouches.length === 1) {
+        // double-tap detected, suppress d3's tap handling
+        handleDblClick(e.changedTouches[0]);
+      }
+      lastTap = now;
+    }, { passive: false });
 
     canvas.onmousemove = (e) => {
       const rect = canvas.getBoundingClientRect();
@@ -413,6 +437,7 @@ export function useGraph(canvasRef) {
     return () => {
       sim.stop();
       resizeObserver.disconnect();
+      canvas.removeEventListener("dblclick", handleDblClick);
       canvas.onmousemove = null;
       canvas.onclick = null;
     };
@@ -435,6 +460,19 @@ export function useGraph(canvasRef) {
     }
   }, []);
 
+  const zoomIn = useCallback(() => {
+    if (!canvasRef.current || !S.current.zoom) return;
+    d3.select(canvasRef.current).transition().duration(250).call(S.current.zoom.scaleBy, 1.4);
+  }, [canvasRef]);
+  const zoomOut = useCallback(() => {
+    if (!canvasRef.current || !S.current.zoom) return;
+    d3.select(canvasRef.current).transition().duration(250).call(S.current.zoom.scaleBy, 0.7);
+  }, [canvasRef]);
+  const resetZoom = useCallback(() => {
+    if (!canvasRef.current || !S.current.zoom) return;
+    d3.select(canvasRef.current).transition().duration(300).call(S.current.zoom.transform, d3.zoomIdentity);
+  }, [canvasRef]);
+
   const selectNodeById = useCallback(id => {
     if (!S.current) return;
     const node = S.current.nodes.find(n => n.id === id);
@@ -450,5 +488,5 @@ export function useGraph(canvasRef) {
     }
   }, []);
 
-  return { loadGraph, selectedNode, clearSelection, selectNodeById, redraw };
+  return { loadGraph, selectedNode, clearSelection, selectNodeById, redraw, zoomIn, zoomOut, resetZoom };
 }

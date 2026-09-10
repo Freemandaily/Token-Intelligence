@@ -31,7 +31,7 @@ import { buildNodes, buildEdges, buildCommunities } from "./utils/graphBuilder.j
 
 export default function App() {
   const canvasRef = useRef(null);
-  const { loadGraph, selectedNode, clearSelection, selectNodeById, redraw } = useGraph(canvasRef);
+  const { loadGraph, selectedNode, clearSelection, selectNodeById, redraw, zoomIn, zoomOut, resetZoom } = useGraph(canvasRef);
 
   const [status, setStatus] = useState("Ready");
   const [loading, setLoading] = useState(false);
@@ -331,6 +331,19 @@ export default function App() {
           <div style={{ position: "relative", flex: 1, minHeight: 0, display: "block" }}>
             {rawGraphRes && (
               <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "100%", touchAction: "none" }} />
+            )}
+
+            {/* Mobile zoom controls — pinch works too, double-tap toggles, but these are discoverable */}
+            {rawGraphRes && (
+              <div style={{
+                position: "absolute", bottom: 16, right: 16,
+                display: "flex", flexDirection: "column", gap: 6,
+                zIndex: 12,
+              }}>
+                <button onClick={zoomIn} title="Zoom in" aria-label="Zoom in" style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(20,20,30,0.9)", backdropFilter: "blur(8px)", color: "#fff", fontSize: 20, lineHeight: 1, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                <button onClick={zoomOut} title="Zoom out" aria-label="Zoom out" style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(20,20,30,0.9)", backdropFilter: "blur(8px)", color: "#fff", fontSize: 20, lineHeight: 1, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                <button onClick={resetZoom} title="Reset view" aria-label="Reset view" style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(20,20,30,0.9)", backdropFilter: "blur(8px)", color: "rgba(255,255,255,0.85)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>◎</button>
+              </div>
             )}
 
             {rawGraphRes && (
