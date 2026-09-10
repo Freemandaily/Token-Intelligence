@@ -241,14 +241,16 @@ export default function App() {
 
   return (
     <div style={{
-      width: "100vw", height: "100vh",
+      width: "100%", height: "100dvh", minHeight: "100dvh",
       display: "flex", flexDirection: "column",
       background: "#0a0a14",
-      overflow: "hidden", position: "fixed", top: 0, left: 0,
+      overflow: "hidden", position: "relative",
+      touchAction: "manipulation",
     }}>
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; } 
-        body, html { overflow: hidden; user-select: none; }
+        html { touch-action: manipulation; }
+        canvas { touch-action: none; }
         @keyframes pulseAndSpin {
           0% { transform: scale(1) rotate(0deg); opacity: 0.8; }
           50% { transform: scale(1.4) rotate(180deg); opacity: 1; text-shadow: 0 0 20px #7f77dd; }
@@ -328,7 +330,7 @@ export default function App() {
           {/* Standard graph */}
           <div style={{ position: "relative", flex: 1, minHeight: 0, display: "block" }}>
             {rawGraphRes && (
-              <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "100%" }} />
+              <canvas ref={canvasRef} style={{ display: "block", width: "100%", height: "100%", touchAction: "none" }} />
             )}
 
             {rawGraphRes && (

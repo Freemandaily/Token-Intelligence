@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.25, maximum-scale=5.0, user-scalable=yes" />
   <link rel="icon" type="image/png" href="/logo.png" />
   <title>Token Intelligence</title>
   <style>
@@ -19,8 +19,17 @@
     body,
     #root {
       width: 100%;
-      height: 100%;
-      overflow: hidden;
+      min-height: 100%;
+      min-height: 100dvh;
+      overflow-x: clip;
+      /* allow browser pinch-zoom to reset below 1x; inner app handles its own overflow */
+      touch-action: manipulation;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    html {
+      /* Safari needs explicit pinch-zoom permission on the viewport */
+      touch-action: manipulation;
     }
 
     body {
