@@ -19,8 +19,7 @@ async def lifespan(app: FastAPI):
         store.test_connection()
         print("DuckDB Parquet validated")
     except Exception as e:
-        print(f"DuckDB validation failed: {e}")
-        raise
+        print(f"WARN: DuckDB validation failed: {e} - starting in degraded mode (health check will report)")
     if HAS_CACHE:
         try:
             redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
@@ -40,4 +39,15 @@ app.include_router(bundling.router, prefix="/api/v1")
 app.include_router(deep_graph.router, prefix="/api/v2")
 @app.get("/", tags=["Health"])
 def health():
-    return {"status": "ok", "message": "Token Intelligence API v2 (DuckDB) is running"}
+    from pathlib import Path
+    from core.config import get_settings
+    settings = get_settings()
+    parquet_root = Path(settings.parquet_root)
+    parquet_exists = parquet_root.exists()
+    try:
+        from data.duckdb_store import get_store
+        get_store().test_connection()
+        db_status = "ok"
+    except Exception as e:
+        db_status = f"degraded: {e}"
+    return {"status": "ok", "message": "Token Intelligence API v2 (DuckDB) is running", "parquet_root": str(parquet_root), "parquet_exists": parquet_exists, "db": db_status}

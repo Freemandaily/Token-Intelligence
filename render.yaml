@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: token-intelligence-v2
+    env: docker
+    dockerContext: ./Dashboard
+    dockerfilePath: ./backend_v2/Dockerfile.baked
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: PARQUET_ROOT
+        value: /data/parquet
+      - key: DUCKDB_PATH
+        value: /tmp/backend_v2.duckdb
+      - key: REDIS_URL
+        sync: false

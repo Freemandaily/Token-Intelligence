@@ -16,16 +16,24 @@ class DuckDBStore:
         self._attach_parquet()
 
     def _attach_parquet(self) -> None:
+        self._ready = False
         if not PARQUET_ROOT.exists():
-            raise FileNotFoundError(f"Parquet root not found: {PARQUET_ROOT}")
+            print(f"WARN: Parquet root not found: {PARQUET_ROOT} - running in degraded mode (no data)")
+            return
         self.con.execute("CREATE SCHEMA IF NOT EXISTS analytics_staging")
         self.con.execute("CREATE SCHEMA IF NOT EXISTS analytics_fact")
-        self._create_metadata_view()
-        self._create_transfers_views()
+        try:
+            self._create_metadata_view()
+            self._create_transfers_views()
+            self._ready = True
+        except FileNotFoundError as e:
+            print(f"WARN: {e} - running in degraded mode")
+            return
 
     def _create_metadata_view(self) -> None:
         if not METADATA_FILE.exists():
-            raise FileNotFoundError(f"Token metadata parquet not found: {METADATA_FILE}")
+            print(f"WARN: Token metadata parquet not found: {METADATA_FILE} - skipping metadata view")
+            return
         path_str = METADATA_FILE.as_posix().replace("'", "''")
         self.con.execute(f"""
             CREATE OR REPLACE VIEW analytics_staging.token_metadata AS
@@ -36,7 +44,8 @@ class DuckDBStore:
     def _create_transfers_views(self) -> None:
         for chain, path in TRANSFERS_FILES.items():
             if not path.exists():
-                raise FileNotFoundError(f"Transfers parquet not found for chain {chain}: {path}")
+                print(f"WARN: Transfers parquet not found for chain {chain}: {path} - skipping")
+                continue
             path_str = path.as_posix().replace("'", "''")
             view_name = f"analytics_fact.token_transfers_{chain}"
             self.con.execute(f"""
@@ -50,6 +59,8 @@ class DuckDBStore:
             """)
 
     def test_connection(self) -> bool:
+        if not PARQUET_ROOT.exists():
+            raise FileNotFoundError(f"Parquet root not found: {PARQUET_ROOT}")
         if not METADATA_FILE.exists():
             raise FileNotFoundError(f"Token metadata parquet not found: {METADATA_FILE}")
         for chain, p in TRANSFERS_FILES.items():

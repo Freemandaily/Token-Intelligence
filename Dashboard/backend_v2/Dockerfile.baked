@@ -1,0 +1,25 @@
+# Alternative Dockerfile that bakes parquet into the image.
+# Use this only if you build with dockerContext: ./Dashboard
+# (set dockerContext: ./Dashboard and dockerfilePath: ./backend_v2/Dockerfile.baked in render.yaml)
+# Bake size is ~103MB; for larger data use a Render Disk instead (see render.yaml).
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY backend_v2/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend_v2/ .
+
+# Bake parquet from Dashboard/Data/parquet
+COPY Data/parquet /data/parquet
+
+ENV PARQUET_ROOT=/data/parquet
+ENV DUCKDB_PATH=/tmp/backend_v2.duckdb
+
+EXPOSE 8000
+
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
