@@ -41,7 +41,11 @@ export const COMMUNITY_PALETTE = [
  * @param {number}   H              — canvas height
  * @returns {object[]} canvas-ready node objects keyed by wallet id
  */
-export function buildNodes(apiNodes, apiCommunities, W, H) {
+export function buildNodes(apiNodes, apiCommunities, W, H, existingNodes = []) {
+  const existingMap = new Map();
+  if (existingNodes) {
+    existingNodes.forEach(n => existingMap.set(n.id, n));
+  }
   const cx = W / 2;
   const cy = H / 2;
   const ringR = Math.min(W, H) * 0.3;
@@ -62,7 +66,20 @@ export function buildNodes(apiNodes, apiCommunities, W, H) {
   // Give nodes random starting coordinates near the centre
   apiNodes.forEach((n) => {
     const cid = n.community_id;
-    const color = commColorMap[cid] ?? "#888780";
+    let color = commColorMap[cid] ?? "#888780";
+    let radius = 5 + (n.balance_pct / maxBalancePct) * 10 + (n.pagerank / maxPagerank) * 6;
+    
+    // Override styling for special nodes
+    if (n.wallet_type === "airdrop") {
+      color = "#ffb347"; // distinct amber/orange
+      radius = 18;
+    } else if (n.wallet_type === "bundle") {
+      color = "#D4537E"; // distinct pink
+      radius = 18;
+    } else if (n.wallet_type === "recipient") {
+      color = "rgba(136, 135, 128, 0.4)"; // ghost node
+      radius = 4;
+    }
 
     canvasNodes.push({
       // identity
@@ -83,15 +100,15 @@ export function buildNodes(apiNodes, apiCommunities, W, H) {
       total_volume_out: n.total_volume_out,
       unique_wallets_in: n.unique_wallets_in,
       unique_wallets_out: n.unique_wallets_out,
+      original_wallet_count: n.original_wallet_count,
 
       // visual
       color,
-      x:       cx + (Math.random() - 0.5) * W * 0.3,
-      y:       cy + (Math.random() - 0.5) * H * 0.3,
-      vx:      0,
-      vy:      0,
-      r:       5 + (n.balance_pct / maxBalancePct) * 10
-             + (n.pagerank     / maxPagerank)     * 6,
+      x:       existingMap.has(n.id) ? existingMap.get(n.id).x : cx + (Math.random() - 0.5) * W * 0.3,
+      y:       existingMap.has(n.id) ? existingMap.get(n.id).y : cy + (Math.random() - 0.5) * H * 0.3,
+      vx:      existingMap.has(n.id) ? existingMap.get(n.id).vx : 0,
+      vy:      existingMap.has(n.id) ? existingMap.get(n.id).vy : 0,
+      r:       radius,
       opacity: 0,
     });
   });

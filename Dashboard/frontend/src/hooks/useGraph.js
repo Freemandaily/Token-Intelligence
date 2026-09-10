@@ -24,8 +24,8 @@ export function useGraph(canvasRef) {
     const ctx = canvas.getContext("2d", { alpha: false });
 
     const parent = canvas.parentElement;
-    const W = parent.clientWidth;
-    const H = parent.clientHeight;
+    let W = parent.clientWidth;
+    let H = parent.clientHeight;
     canvas.width = W;
     canvas.height = H;
     S.current.width = W;
@@ -88,98 +88,31 @@ export function useGraph(canvasRef) {
         hubBackbone.get(tid).push(sid);
       }
     });
-
     S.current.nodes = nodes;
     S.current.edges = edges;
     S.current.degree = degree;
     S.current.hubLeaves = hubLeaves;
 
-    function arcForce() {
-      let forceNodeById = new Map();
-      function force(alpha) {
-        hubLeaves.forEach((leafIds, hubId) => {
-          const hub = forceNodeById.get(hubId);
-          if (!hub) return;
-
-          let dx, dy;
-          const backboneIds = hubBackbone.get(hubId);
-          if (backboneIds && backboneIds.length > 0) {
-            let bx = 0, by = 0, count = 0;
-            backboneIds.forEach(id => {
-              const n = forceNodeById.get(id);
-              if (n) { bx += n.x; by += n.y; count++; }
-            });
-            if (count > 0) {
-              // Point TOWARDS the center of mass of the backbone neighbors
-              // so the leaves trail towards the connected nodes (comet effect)
-              dx = (bx / count) - hub.x;
-              dy = (by / count) - hub.y;
-            } else {
-              dx = W / 2 - hub.x;
-              dy = H / 2 - hub.y;
-            }
-          } else {
-            dx = W / 2 - hub.x;
-            dy = H / 2 - hub.y;
-          }
-          
-          const baseAngle = (dx === 0 && dy === 0) ? 0 : Math.atan2(dy, dx);
-
-          let currentRadius = Math.max(45, hub.r + 35);
-          let remaining = leafIds.length;
-          let i = 0;
-
-          while (remaining > 0) {
-            const arcSpread = Math.PI * 1.5;
-            const maxNodesThisLayer = Math.max(5, Math.floor((arcSpread * currentRadius) / 20));
-            const nodesInLayer = Math.min(remaining, maxNodesThisLayer);
-
-            const actualSpread = nodesInLayer === 1 ? 0 : Math.min(arcSpread, nodesInLayer * 0.3);
-            const startAngle = baseAngle - actualSpread / 2;
-            const angleStep = nodesInLayer > 1 ? actualSpread / (nodesInLayer - 1) : 0;
-
-            for (let j = 0; j < nodesInLayer; j++) {
-              const leafId = leafIds[i];
-              const leaf = forceNodeById.get(leafId);
-              if (leaf && !leaf.manuallyDragged) {
-                const angle = startAngle + j * angleStep;
-                leaf.fx = hub.x + Math.cos(angle) * currentRadius;
-                leaf.fy = hub.y + Math.sin(angle) * currentRadius;
-              }
-              i++;
-            }
-            remaining -= nodesInLayer;
-            currentRadius += 22;
-          }
-        });
-      }
-      force.initialize = function (_nodes) {
-        forceNodeById.clear();
-        _nodes.forEach(n => forceNodeById.set(n.id, n));
-      };
-      return force;
-    }
-
     const sim = d3.forceSimulation(nodes)
-      .force("link", d3.forceLink(edges).distance(100).strength(d => {
-        const sid = typeof d.source === "object" ? d.source.id : d.source;
-        const tid = typeof d.target === "object" ? d.target.id : d.target;
-        return (degree.get(sid) === 1 || degree.get(tid) === 1) ? 0.05 : Math.min(0.8, d.weight * 0.15);
-      }))
-      .force("charge", d3.forceManyBody().strength(d => degree.get(d.id) === 1 ? -10 : -150 - d.r * 5))
+      .force("link", d3.forceLink(edges).distance(80).strength(0.3))
+      .force("charge", d3.forceManyBody().strength(-120))
+      .force("collide", d3.forceCollide().radius(d => d.r + 8))
       .force("center", d3.forceCenter(W / 2, H / 2))
-      .force("gravityX", d3.forceX(W / 2).strength(d => degree.get(d.id) > 0 ? 0.02 : 0))
-      .force("gravityY", d3.forceY(H / 2).strength(d => degree.get(d.id) > 0 ? 0.02 : 0))
       .force("unconnectedRing", d3.forceRadial(
         Math.max(300, Math.min(W, H) * 0.45),
         W / 2,
         H / 2
-      ).strength(d => degree.get(d.id) === 0 ? 0.6 : 0))
-      .force("arc", arcForce())
-      .alpha(isUpdate ? 0.2 : 1)
+      ).strength(d => degree.get(d.id) === 0 ? 0.1 : 0))
+      .force("hubAnchor", d3.forceRadial(
+        Math.max(150, Math.min(W, H) * 0.25),
+        W / 2,
+        H / 2
+      ).strength(d => (d.wallet_type === "airdrop" || d.wallet_type === "bundle") ? 0.1 : 0))
+      .alpha(1)
       .on("tick", drawFrame);
 
     function drawFrame() {
+      S.current.drawFrame = drawFrame;
       if (!canvasRef.current) return;
 
       const transform = S.current.transform;
@@ -246,7 +179,7 @@ export function useGraph(canvasRef) {
         ctx.globalAlpha = alpha;
 
         const isUnconnected = degree.get(n.id) === 0;
-        const borderColor = isUnconnected ? "#6a6a6a" : (n.color || "#888780");
+        const borderColor = (isUnconnected && n.wallet_type !== "bundle" && n.wallet_type !== "airdrop") ? "#6a6a6a" : (n.color || "#888780");
 
         if (isSel) {
           ctx.beginPath();
@@ -259,23 +192,49 @@ export function useGraph(canvasRef) {
         }
 
         ctx.beginPath();
-        ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+        // Custom shapes for hubs
+        if (n.wallet_type === "airdrop" || n.wallet_type === "bundle") {
+          // Draw a hexagon
+          for (let i = 0; i < 6; i++) {
+            const angle = (Math.PI / 3) * i;
+            const px = n.x + r * Math.cos(angle);
+            const py = n.y + r * Math.sin(angle);
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          
+          ctx.fillStyle = borderColor;
+          ctx.fill();
+          
+          ctx.strokeStyle = "rgba(255,255,255,0.8)";
+          ctx.lineWidth = isHover || isSel ? 3 : 2;
+          ctx.stroke();
 
-        const gradient = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r);
-        gradient.addColorStop(0, "#111");
-        gradient.addColorStop(1, borderColor);
-        ctx.fillStyle = gradient;
-        ctx.fill();
-
-        ctx.strokeStyle = borderColor;
-        ctx.lineWidth = isHover || isSel ? 3 : 2;
-
-        if (n.r > 15) {
-          ctx.setLineDash([4, 4]);
+          // Add a strong glow
+          ctx.shadowColor = borderColor;
+          ctx.shadowBlur = 15;
+          ctx.stroke();
+          ctx.shadowBlur = 0;
         } else {
-          ctx.setLineDash([]);
+          ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+          
+          const gradient = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r);
+          gradient.addColorStop(0, "#111");
+          gradient.addColorStop(1, borderColor);
+          ctx.fillStyle = gradient;
+          ctx.fill();
+
+          ctx.strokeStyle = borderColor;
+          ctx.lineWidth = isHover || isSel ? 3 : 2;
+
+          if (n.r > 15 && n.wallet_type !== "recipient") {
+            ctx.setLineDash([4, 4]);
+          } else {
+            ctx.setLineDash([]);
+          }
+          ctx.stroke();
         }
-        ctx.stroke();
 
         if (n.name) {
           ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
@@ -356,62 +315,28 @@ export function useGraph(canvasRef) {
         return null;
       })
       .on("start", (e) => {
-        sim.stop(); // Temporarily pause the physics engine during the drag
-        
-        // Find neighbors that have exactly ONE connection (degree === 1)
-        const allowedToMove = new Set();
-        allowedToMove.add(e.subject.id);
-        
-        edges.forEach(edge => {
-          let neighborId = null;
-          let sid = typeof edge.source === "object" ? edge.source.id : edge.source;
-          let tid = typeof edge.target === "object" ? edge.target.id : edge.target;
-
-          if (sid === e.subject.id) neighborId = tid;
-          else if (tid === e.subject.id) neighborId = sid;
-
-          if (neighborId && degree.get(neighborId) === 1) {
-            allowedToMove.add(neighborId);
-          }
-        });
-
-        // Store this so drag can use it without recalculating
-        e.subject._allowedToMove = allowedToMove;
+        if (!e.active) sim.alphaTarget(0.3).restart();
+        e.subject.fx = e.subject.x;
+        e.subject.fy = e.subject.y;
         e.subject._wasDragged = false;
       })
       .on("drag", (e) => {
         e.subject._wasDragged = true;
-        const trueDx = e.dx / S.current.transform.k;
-        const trueDy = e.dy / S.current.transform.k;
-
-        // Move ONLY the hub and its 1-degree leaves perfectly with the mouse.
-        // The rest of the graph stays exactly where it is.
-        nodes.forEach(n => {
-          if (e.subject._allowedToMove && e.subject._allowedToMove.has(n.id)) {
-            n.x += trueDx;
-            n.y += trueDy;
-            n.fx = n.x; // Lock them rigidly to the dragged position
-            n.fy = n.y;
-          }
-        });
-
-        // Draw immediately since physics is stopped
+        e.subject.fx += e.dx / S.current.transform.k;
+        e.subject.fy += e.dy / S.current.transform.k;
+        e.subject.x = e.subject.fx;
+        e.subject.y = e.subject.fy;
         requestAnimationFrame(drawFrame);
       })
       .on("end", (e) => {
-        delete e.subject._allowedToMove;
-        
+        if (!e.active) sim.alphaTarget(0);
         if (e.subject._wasDragged) {
           e.subject.manuallyDragged = true;
-          // Do NOT restart physics!
-          // Leaving it paused ensures the dragged cluster stays exactly where placed 
-          // and prevents the stretched elastic lines from pulling the rest of the graph.
         } else {
-          // It was just a click! Resume physics without heating it up
-          // This prevents the graph from vibrating wildly on click
-          sim.restart();
+          // It was just a click, no drag
         }
-        
+        e.subject.fx = null;
+        e.subject.fy = null;
         delete e.subject._wasDragged;
       });
 
@@ -449,8 +374,45 @@ export function useGraph(canvasRef) {
       }
     };
 
+    const resize = () => {
+      if (!canvasRef.current) return;
+      const parent = canvasRef.current.parentElement;
+      if (!parent) return;
+      
+      const newW = parent.clientWidth;
+      const newH = parent.clientHeight;
+      if (newW === 0 || newH === 0) return; // skip when hidden
+      
+      W = newW;
+      H = newH;
+      canvas.width = W;
+      canvas.height = H;
+      S.current.width = W;
+      S.current.height = H;
+
+      sim.force("center", d3.forceCenter(W / 2, H / 2));
+      sim.force("unconnectedRing", d3.forceRadial(
+        Math.max(300, Math.min(W, H) * 0.45),
+        W / 2,
+        H / 2
+      ).strength(d => degree.get(d.id) === 0 ? 0.1 : 0));
+      sim.force("hubAnchor", d3.forceRadial(
+        Math.max(150, Math.min(W, H) * 0.25),
+        W / 2,
+        H / 2
+      ).strength(d => (d.wallet_type === "airdrop" || d.wallet_type === "bundle") ? 0.1 : 0));
+      
+      if (S.current.drawFrame) {
+        requestAnimationFrame(S.current.drawFrame);
+      }
+    };
+
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(canvas.parentElement);
+
     return () => {
       sim.stop();
+      resizeObserver.disconnect();
       canvas.onmousemove = null;
       canvas.onclick = null;
     };
@@ -460,15 +422,18 @@ export function useGraph(canvasRef) {
     if (S.current) {
       S.current.selectedNode = null;
       S.current.connectedNodes.clear();
-      if (canvasRef.current) {
-        // trigger redraw
-        const event = new Event("mousemove");
-        event.clientX = -999;
-        canvasRef.current.dispatchEvent(event);
+      if (S.current.drawFrame) {
+        requestAnimationFrame(S.current.drawFrame);
       }
     }
     setSelectedNode(null);
-  }, [canvasRef]);
+  }, []);
+
+  const redraw = useCallback(() => {
+    if (S.current && S.current.drawFrame) {
+      requestAnimationFrame(S.current.drawFrame);
+    }
+  }, []);
 
   const selectNodeById = useCallback(id => {
     if (!S.current) return;
@@ -481,14 +446,9 @@ export function useGraph(canvasRef) {
         if (e.target === node) S.current.connectedNodes.add(e.source);
       });
       setSelectedNode({ ...node });
-
-      if (canvasRef.current) {
-        const event = new Event("mousemove");
-        event.clientX = -999;
-        canvasRef.current.dispatchEvent(event);
-      }
+      if (S.current.drawFrame) requestAnimationFrame(S.current.drawFrame);
     }
-  }, [canvasRef]);
+  }, []);
 
-  return { loadGraph, selectedNode, clearSelection, selectNodeById };
+  return { loadGraph, selectedNode, clearSelection, selectNodeById, redraw };
 }

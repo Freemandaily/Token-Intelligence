@@ -15,7 +15,7 @@ const SearchIcon = () => (
   </svg>
 );
 
-export default function TopBar({ status, loading, onSearch, onGoHome, hasData }) {
+export default function TopBar({ status, loading, onSearch, onGoHome, hasData, isSidebarOpen, onToggleSidebar }) {
   const [input, setInput] = useState("");
   const [tokens, setTokens] = useState([]);
 
@@ -39,16 +39,44 @@ export default function TopBar({ status, loading, onSearch, onGoHome, hasData })
     }}>
       {/* title - absolute positioned to stay on the left without affecting centering of search bar */}
       <div 
-        onClick={onGoHome}
         style={{ 
-          position: "absolute", left: 24, display: "flex", flexDirection: "column", 
-          cursor: "pointer", transition: "opacity 0.2s" 
+          position: "absolute", left: 24, display: "flex", alignItems: "center", gap: 16 
         }}
-        onMouseEnter={(e) => e.currentTarget.style.opacity = 0.8}
-        onMouseLeave={(e) => e.currentTarget.style.opacity = 1}
       >
-        <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ color: "#7f77dd", fontSize: 20 }}>◈</span> Token Intelligence
+        <button 
+          onClick={onToggleSidebar}
+          style={{
+            background: "transparent", border: "none", color: "rgba(255,255,255,0.7)", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 4, borderRadius: 4,
+            transition: "all 0.2s"
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "#fff";
+            e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = "rgba(255,255,255,0.7)";
+            e.currentTarget.style.background = "transparent";
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+
+        <div 
+          onClick={onGoHome}
+          style={{ 
+            display: "flex", flexDirection: "column", cursor: "pointer", transition: "opacity 0.2s" 
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.opacity = 0.8}
+          onMouseLeave={(e) => e.currentTarget.style.opacity = 1}
+        >
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ color: "#7f77dd", fontSize: 20 }}>◈</span> Token Intelligence
+          </div>
         </div>
       </div>
 
@@ -158,11 +186,16 @@ export default function TopBar({ status, loading, onSearch, onGoHome, hasData })
               >
                 <div style={{ 
                   width: 18, height: 18, borderRadius: "50%", 
-                  background: "linear-gradient(135deg, #7f77dd, #3b82f6)",
+                  background: t.logo_url ? "transparent" : "linear-gradient(135deg, #7f77dd, #3b82f6)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 10, fontWeight: 700, color: "#fff"
+                  fontSize: 10, fontWeight: 700, color: "#fff",
+                  overflow: "hidden"
                 }}>
-                  {t.symbol ? t.symbol.substring(0, 1).toUpperCase() : "?"}
+                  {t.logo_url ? (
+                    <img src={t.logo_url} alt={t.symbol} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                  ) : (
+                    t.symbol ? t.symbol.substring(0, 1).toUpperCase() : "?"
+                  )}
                 </div>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.8)" }}>{t.symbol || "Token"}</span>
               </div>

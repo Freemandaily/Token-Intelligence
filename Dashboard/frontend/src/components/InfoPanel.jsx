@@ -55,14 +55,25 @@ const ArrowOutIcon = () => (
   </svg>
 );
 
-export default function InfoPanel({ node, communities, onClose, hiddenNodes, onToggleVisibility, tokenAddress }) {
+export default function InfoPanel({ node, communities, onClose, hiddenNodes, onToggleVisibility, tokenAddress, chain }) {
   const [copied, setCopied] = useState(false);
   if (!node) return null;
 
   const isHidden = hiddenNodes?.has(node.id);
   const comm = communities?.find((c) => c.id === node.community_id);
   const color = node.color || comm?.color || "#ffffff";
-  const shortId = `${node.id.slice(0, 6)}...${node.id.slice(-4)}`;
+  const address = node.actualAddress || node.id;
+  const shortId = `${address.slice(0, 6)}...${address.slice(-4)}`;
+
+  function getExplorerUrl() {
+    const c = (chain || "eth").toLowerCase();
+    if (c.includes("arb")) return `https://arbiscan.io/token/${tokenAddress}?a=${address}`;
+    if (c.includes("base")) return `https://basescan.org/token/${tokenAddress}?a=${address}`;
+    if (c.includes("sol")) return `https://solscan.io/account/${address}`;
+    if (c.includes("opt")) return `https://optimistic.etherscan.io/token/${tokenAddress}?a=${address}`;
+    if (c.includes("bsc") || c.includes("bnb")) return `https://bscscan.com/token/${tokenAddress}?a=${address}`;
+    return `https://etherscan.io/token/${tokenAddress}?a=${address}`;
+  }
 
   function copy(text) {
     navigator.clipboard.writeText(text)
@@ -85,11 +96,12 @@ export default function InfoPanel({ node, communities, onClose, hiddenNodes, onT
     return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
   };
 
-  const balancePct = node.balance_pct < 0.0001 ? "< 0.01" : (node.balance_pct * 100).toFixed(2);
+  const balancePctNum = Number(node.balance_pct || 0);
+  const balancePct = balancePctNum > 0 && balancePctNum < 0.0001 ? "< 0.01" : (balancePctNum * 100).toFixed(2);
 
   return (
     <div className="info-panel" style={{
-      position: "absolute", top: 110, left: 15,
+      position: "absolute", top: 110, left: 15, zIndex: 100,
       background: "#161622",
       border: "1px solid rgba(255,255,255,0.08)",
       borderRadius: 12, padding: 16, width: 340,
@@ -105,16 +117,16 @@ export default function InfoPanel({ node, communities, onClose, hiddenNodes, onT
             <span style={{ fontSize: 18, fontWeight: 600, fontFamily: node.name ? "inherit" : "monospace", lineHeight: 1.2 }}>{node.name || shortId}</span>
             {node.name && <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: "monospace", marginTop: 2 }}>{shortId}</span>}
           </div>
-          <button onClick={() => copy(node.id)} style={{ background: "none", border: "none", cursor: "pointer", color: copied ? "#22c55e" : "rgba(255,255,255,0.5)", marginTop: 2, alignSelf: "flex-start" }} title="Copy Address">
+          <button onClick={() => copy(address)} style={{ background: "none", border: "none", cursor: "pointer", color: copied ? "#22c55e" : "rgba(255,255,255,0.5)", marginTop: 2, alignSelf: "flex-start" }} title="Copy Address">
             <CopyIcon />
           </button>
           {tokenAddress && (
             <a 
-              href={`https://etherscan.io/token/${tokenAddress}?a=${node.id}`} 
+              href={getExplorerUrl()} 
               target="_blank" 
               rel="noreferrer"
               style={{ color: "rgba(255,255,255,0.5)", marginTop: 2, display: "flex", alignItems: "center" }}
-              title="View on Etherscan"
+              title="View on Explorer"
             >
               <ExternalLinkIcon />
             </a>
@@ -146,9 +158,15 @@ export default function InfoPanel({ node, communities, onClose, hiddenNodes, onT
 
       {/* CLUSTER PILL */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "10px 14px", marginBottom: 20 }}>
-        <span style={{ fontSize: 13, fontWeight: 600 }}>Community {node.community_id} Node</span>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>{node.wallet_type === "airdrop" || node.wallet_type === "bundle" ? "Virtual Hub Node" : `Community ${node.community_id} Node`}</span>
         <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: color }}></div>
       </div>
+
+      {node.original_wallet_count > 20 && (
+        <div style={{ background: "rgba(255, 179, 71, 0.1)", color: "#ffb347", padding: "8px 12px", borderRadius: 6, fontSize: 12, marginBottom: 20, textAlign: "center" }}>
+          Graph visually limited to 20 out of {node.original_wallet_count} addresses to prevent lag.
+        </div>
+      )}
 
       {/* IN / OUT ROWS */}
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -157,7 +175,10 @@ export default function InfoPanel({ node, communities, onClose, hiddenNodes, onT
           <ArrowInIcon />
           <div style={{ fontSize: 15 }}>
             <span style={{ fontWeight: 700 }}>{formatAmount(node.total_volume_in)} IN</span>
-            <span style={{ color: "rgba(255,255,255,0.5)", marginLeft: 6 }}>from {node.unique_wallets_in || 0} addresses</span>
+            <span style={{ color: "rgba(255,255,255,0.5)", marginLeft: 6 }}>
+              from {node.unique_wallets_in || 0} addresses
+              {node.total_txs_received !== undefined && ` (${node.total_txs_received} txs)`}
+            </span>
           </div>
         </div>
         {/* OUT Row */}
@@ -165,7 +186,10 @@ export default function InfoPanel({ node, communities, onClose, hiddenNodes, onT
           <ArrowOutIcon />
           <div style={{ fontSize: 15 }}>
             <span style={{ fontWeight: 700 }}>{formatAmount(node.total_volume_out)} OUT</span>
-            <span style={{ color: "rgba(255,255,255,0.5)", marginLeft: 6 }}>to {node.unique_wallets_out || 0} addresses</span>
+            <span style={{ color: "rgba(255,255,255,0.5)", marginLeft: 6 }}>
+              to {node.unique_wallets_out || 0} addresses
+              {node.total_txs_made !== undefined && ` (${node.total_txs_made} txs)`}
+            </span>
           </div>
         </div>
       </div>

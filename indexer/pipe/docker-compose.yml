@@ -1,0 +1,48 @@
+version: "3"
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: squid
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+    ports:
+      - "${DB_PORT}:5432"
+    shm_size: 1gb
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d squid" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migration:
+    build: .
+    command: [ "npx", "squid-typeorm-migration", "apply" ]
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: squid
+      DB_USER: postgres
+      DB_PASS: postgres
+    depends_on:
+      db:
+        condition: service_healthy
+
+  processor:
+    build: .
+    command: [ "node", "lib/run-all.js" ]
+    volumes:
+      - ./tokens.json:/squid/tokens.json
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: squid
+      DB_USER: postgres
+      DB_PASS: postgres
+      SQD_API_KEY: ${SQD_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully

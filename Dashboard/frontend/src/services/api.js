@@ -19,8 +19,9 @@
  *   GET /
  *       → { status, message }
  */
+// "https://inteli-backend.onrender.com";
 
-const BASE = import.meta.env.VITE_API_URL || "https://inteli-backend.onrender.com";
+const BASE = import.meta.env.VITE_API_URL || "http://localhost:8001";
 
 async function request(path) {
   const res = await fetch(`${BASE}${path}`);
@@ -57,7 +58,14 @@ export async function fetchForensics(walletAddress) {
 
 /** Health check. */
 export async function fetchHealth() {
-  return request("/");
+  return request(`/`);
+}
+
+/**
+ * Fetch bundling analysis events.
+ */
+export async function fetchBundling(tokenAddress, maxBlockGap = 0, minWallets = 10) {
+  return request(`/api/v1/bundling/${tokenAddress}?max_block_gap=${maxBlockGap}&min_wallets=${minWallets}`);
 }
 
 /**
@@ -65,4 +73,21 @@ export async function fetchHealth() {
  */
 export async function fetchAvailableTokens() {
   return request(`/api/v1/tokens/`);
+}
+
+/**
+ * Fetch deep network analysis for a token (v2 endpoint).
+ * @param {string} tokenAddress   ERC-20 contract address
+ * @param {Object} params         Threshold + optional path params
+ */
+export async function fetchDeepGraph(tokenAddress, params = {}) {
+  const q = new URLSearchParams();
+  if (params.minTransferCount != null) q.set("min_transfer_count", params.minTransferCount);
+  if (params.minEdgeVolumePct != null) q.set("min_edge_volume_pct", params.minEdgeVolumePct);
+  if (params.minDegree != null) q.set("min_degree", params.minDegree);
+  if (params.minCommunitySize != null) q.set("min_community_size", params.minCommunitySize);
+  if (params.source) q.set("source", params.source);
+  if (params.target) q.set("target", params.target);
+  const qs = q.toString() ? `?${q.toString()}` : "";
+  return request(`/api/v2/deep-graph/${tokenAddress}${qs}`);
 }

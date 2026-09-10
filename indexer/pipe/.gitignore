@@ -1,0 +1,8 @@
+/node_modules
+/lib
+
+# IDE files
+/.idea
+pnpm-lock.yaml
+**/*.log
+.env

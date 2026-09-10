@@ -66,11 +66,16 @@ export default function TokenDiscovery({ onSelectToken }) {
           >
             <div style={{ 
               width: 40, height: 40, borderRadius: "50%", 
-              background: "linear-gradient(135deg, #7f77dd, #3b82f6)",
+              background: t.logo_url ? "transparent" : "linear-gradient(135deg, #7f77dd, #3b82f6)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 18, fontWeight: 700, color: "#fff"
+              fontSize: 18, fontWeight: 700, color: "#fff",
+              overflow: "hidden"
             }}>
-              {t.symbol ? t.symbol.substring(0, 1).toUpperCase() : "?"}
+              {t.logo_url ? (
+                <img src={t.logo_url} alt={t.symbol} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              ) : (
+                t.symbol ? t.symbol.substring(0, 1).toUpperCase() : "?"
+              )}
             </div>
             
             <div style={{ overflow: "hidden" }}>

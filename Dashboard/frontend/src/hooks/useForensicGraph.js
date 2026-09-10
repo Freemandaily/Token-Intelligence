@@ -60,29 +60,11 @@ export default function useForensicGraph(canvasRef, forensicData, visibleAddress
 
     const centerNode = nodes.find(n => n.id === centerWallet);
 
-    const forceX = d3.forceX(d => {
-      if (d.fx !== undefined) return d.fx;
-      if (d.id === centerWallet) return W / 2; 
-      
-      const cX = centerNode && centerNode.x !== undefined && !isNaN(centerNode.x) ? centerNode.x : W / 2;
-      const isInflow = forensicData.edges.some(e => (e.source.id || e.source) === d.id && (e.target.id || e.target) === centerWallet);
-      if (isInflow) return cX - 350; 
-      return cX + 350; 
-    }).strength(0.5); 
-
-    const forceY = d3.forceY(d => {
-      if (d.fy !== undefined) return d.fy;
-      
-      const cY = centerNode && centerNode.y !== undefined && !isNaN(centerNode.y) ? centerNode.y : H / 2;
-      return cY;
-    }).strength(0.05);
-
     const sim = d3.forceSimulation(nodes)
-      // Removed forceLink and forceManyBody so wallets DO NOT pull or push each other like rubber bands.
-      // This allows wallets to be completely independent when dragged.
-      .force("collide", d3.forceCollide().radius(90).iterations(3)) // Prevents block overlap
-      .force("x", forceX)
-      .force("y", forceY)
+      .force("link", d3.forceLink(edges).id(d => d.id).distance(200).strength(0.3))
+      .force("charge", d3.forceManyBody().strength(-800))
+      .force("center", d3.forceCenter(W / 2, H / 2))
+      .force("collide", d3.forceCollide().radius(90))
       .alpha(1)
       .on("tick", drawFrame);
 
@@ -150,12 +132,10 @@ export default function useForensicGraph(canvasRef, forensicData, visibleAddress
         ctx.stroke();
 
         // Draw volume label in the middle of the curve
-        // Calculate midpoint of bezier
         const t_val = 0.5;
         const midX = Math.pow(1-t_val, 3)*sx + 3*Math.pow(1-t_val, 2)*t_val*cp1x + 3*(1-t_val)*Math.pow(t_val, 2)*cp2x + Math.pow(t_val, 3)*tx;
         const midY = Math.pow(1-t_val, 3)*sy + 3*Math.pow(1-t_val, 2)*t_val*cp1y + 3*(1-t_val)*Math.pow(t_val, 2)*cp2y + Math.pow(t_val, 3)*ty;
         
-        const totalVolume = e.tokens.reduce((acc, t) => acc + parseFloat(t.total_volume), 0);
         const txt = e.tokens.length === 1 
           ? `${e.tokens[0].total_volume} ${e.tokens[0].token_symbol}` 
           : `${e.tokens.length} Tokens`;
@@ -212,7 +192,6 @@ export default function useForensicGraph(canvasRef, forensicData, visibleAddress
           ctx.fillText(`${connCount} Connections`, n.x, n.y + 10);
         }
 
-        // Draw interactive toolbar if hovered
         if (isHovered) {
           const tbY = by + BLOCK_H;
           const tbH = 26;
@@ -225,7 +204,6 @@ export default function useForensicGraph(canvasRef, forensicData, visibleAddress
           ctx.lineWidth = 1;
           ctx.stroke();
 
-          // Separator line
           ctx.beginPath();
           ctx.moveTo(bx + BLOCK_W/2, tbY + 4);
           ctx.lineTo(bx + BLOCK_W/2, tbY + tbH - 4);
@@ -235,11 +213,9 @@ export default function useForensicGraph(canvasRef, forensicData, visibleAddress
           ctx.font = "10px monospace";
           ctx.textAlign = "center";
           
-          // Remove button (left)
           ctx.fillStyle = "#f87171";
           ctx.fillText("x REMOVE", bx + BLOCK_W/4, tbY + 14);
 
-          // Etherscan button (right)
           ctx.fillStyle = "#60a5fa";
           ctx.fillText("↗ ETHERSCAN", bx + (BLOCK_W*3)/4, tbY + 14);
         }
@@ -248,12 +224,9 @@ export default function useForensicGraph(canvasRef, forensicData, visibleAddress
       ctx.restore();
     }
 
-    // Interactions
-    // 1. Zoom implementation with strict filter to prevent panning when clicking nodes
     const zoom = d3.zoom()
       .scaleExtent([0.1, 4])
       .filter((e) => {
-        // If clicking/touching, check if it's over a node
         if (e.type === "mousedown" || e.type === "touchstart") {
           const rect = canvas.getBoundingClientRect();
           const clientX = e.clientX ?? (e.touches && e.touches[0].clientX);
@@ -264,12 +237,11 @@ export default function useForensicGraph(canvasRef, forensicData, visibleAddress
             for (let i = nodes.length - 1; i >= 0; i--) {
               const n = nodes[i];
               if (x >= n.x - BLOCK_W/2 && x <= n.x + BLOCK_W/2 && y >= n.y - BLOCK_H/2 && y <= n.y + BLOCK_H/2) {
-                return false; // Prevent Pan!
+                return false; 
               }
             }
           }
         }
-        // Default D3 filter (ignore right clicks)
         return !e.ctrlKey && !e.button;
       })
       .on("zoom", (e) => {
@@ -279,7 +251,6 @@ export default function useForensicGraph(canvasRef, forensicData, visibleAddress
     
     d3.select(canvas).call(zoom);
 
-    // 2. Drag implementation
     d3.select(canvas).call(d3.drag()
       .subject((e) => {
         if (!e.sourceEvent) return null;
@@ -294,14 +265,14 @@ export default function useForensicGraph(canvasRef, forensicData, visibleAddress
         for (let i = nodes.length - 1; i >= 0; i--) {
           const n = nodes[i];
           if (x >= n.x - BLOCK_W/2 && x <= n.x + BLOCK_W/2 && y >= n.y - BLOCK_H/2 && y <= n.y + BLOCK_H/2) {
-            n.x = n.x;
-            n.y = n.y;
             return n;
           }
         }
         return null;
       })
       .on("start", (e) => {
+        // Unconditional restart to guarantee physics wakes up when dragged
+        sim.alphaTarget(0.3).restart();
         e.subject.fx = e.subject.x;
         e.subject.fy = e.subject.y;
         S.current.draggedNode = e.subject;
@@ -314,6 +285,10 @@ export default function useForensicGraph(canvasRef, forensicData, visibleAddress
         requestAnimationFrame(drawFrame);
       })
       .on("end", (e) => {
+        sim.alphaTarget(0);
+        // UNPIN the node so it can float freely again after drag!
+        e.subject.fx = null;
+        e.subject.fy = null;
         S.current.draggedNode = null;
       })
     );
